@@ -1277,18 +1277,18 @@ static void updateReports(void) {
 	controllerUsbData.statusReport.rightBumper = getRightBumperState();
 	controllerUsbData.statusReport.leftBumper = getLeftBumperState();
 
-	controllerUsbData.statusReport.xButton = false;
-	controllerUsbData.statusReport.aButton = getRightTrackpadClickState();
-	controllerUsbData.statusReport.bButton = getRightTriggerState();
-	controllerUsbData.statusReport.yButton = false;
+	// controllerUsbData.statusReport.xButton = 0;
+	controllerUsbData.statusReport.aButton = getRightTriggerState();
+	controllerUsbData.statusReport.bButton = getRightTrackpadClickState();
+	// controllerUsbData.statusReport.yButton = 0;
 
-	controllerUsbData.statusReport.snapshotButton = false;
-	controllerUsbData.statusReport.homeButton = false;
+	// controllerUsbData.statusReport.snapshotButton = 0;
+	// controllerUsbData.statusReport.homeButton = 0;
 
-	controllerUsbData.statusReport.rightAnalogClick = false;
+	// controllerUsbData.statusReport.rightAnalogClick = 0;
 	controllerUsbData.statusReport.leftAnalogClick = getJoyClickState();
 	controllerUsbData.statusReport.plusButton = getFrontLeftButtonState();
-	controllerUsbData.statusReport.minusButton = false;
+	// controllerUsbData.statusReport.minusButton = 0;
 
 	// Analog Joystick is Left Analog:
 	controllerUsbData.statusReport.leftAnalogX = convToPowerAJoyPos(
@@ -1340,27 +1340,29 @@ static void updateReports(void) {
 	}
 
     const uint32_t POS_MAX = 0xFF;
-	const uint32_t POS_MIN = 0x00;
-	const uint32_t MID_VAL = (POS_MAX+1)/2;
+	const uint8_t MID_VAL = (POS_MAX+1)/2;
 
-    uint32_t cStickX = MID_VAL;
-    uint32_t cStickY = MID_VAL;
+    uint8_t cStickX = MID_VAL;
+    uint8_t cStickY = MID_VAL;
 
     if (getXButtonState()) {
-        cStickX = POS_MIN;
+        cStickX = 0x00;
     }
     if (getYButtonState()) {
-        cStickY = POS_MIN;
+        cStickY = 0x00;
     }
     if (getBButtonState()) {
-        cStickX = POS_MAX;
+        cStickX = 0xFF;
     }
     if (getAButtonState()) {
-        cStickY = POS_MAX;
+        cStickY = 0xFF;
     }
 
     controllerUsbData.statusReport.rightAnalogX = cStickX;
     controllerUsbData.statusReport.rightAnalogY = cStickY;
+
+    // Even though we don't use this information; running this is required for it to not freeze
+	trackpadGetLastXY(R_TRACKPAD, &tpad_x, &tpad_y);
 }
 
 /**
