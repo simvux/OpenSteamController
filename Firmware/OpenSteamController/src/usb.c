@@ -1272,23 +1272,23 @@ static void updateReports(void) {
 	trackpadLocUpdate(R_TRACKPAD);
 
 	// Associate Steam Controller buttons to Switch Controller buttons:
-	controllerUsbData.statusReport.rightTrigger = getRightTriggerState();
+	controllerUsbData.statusReport.rightTrigger = getFrontRightButtonState();
 	controllerUsbData.statusReport.leftTrigger = getLeftTriggerState();
 	controllerUsbData.statusReport.rightBumper = getRightBumperState();
 	controllerUsbData.statusReport.leftBumper = getLeftBumperState();
 
-	controllerUsbData.statusReport.xButton = getYButtonState();
-	controllerUsbData.statusReport.aButton = getBButtonState();
-	controllerUsbData.statusReport.bButton = getAButtonState();
-	controllerUsbData.statusReport.yButton = getXButtonState();
+	controllerUsbData.statusReport.xButton = false;
+	controllerUsbData.statusReport.aButton = getRightTrackpadClickState();
+	controllerUsbData.statusReport.bButton = getRightTriggerState();
+	controllerUsbData.statusReport.yButton = false;
 
-	controllerUsbData.statusReport.snapshotButton = getLeftGripState();
-	controllerUsbData.statusReport.homeButton = getSteamButtonState();
+	controllerUsbData.statusReport.snapshotButton = false;
+	controllerUsbData.statusReport.homeButton = false;
 
-	controllerUsbData.statusReport.rightAnalogClick = getRightTrackpadClickState();
+	controllerUsbData.statusReport.rightAnalogClick = false;
 	controllerUsbData.statusReport.leftAnalogClick = getJoyClickState();
-	controllerUsbData.statusReport.plusButton = getFrontRightButtonState();
-	controllerUsbData.statusReport.minusButton = getFrontLeftButtonState();
+	controllerUsbData.statusReport.plusButton = getFrontLeftButtonState();
+	controllerUsbData.statusReport.minusButton = false;
 
 	// Analog Joystick is Left Analog:
 	controllerUsbData.statusReport.leftAnalogX = convToPowerAJoyPos(
@@ -1339,12 +1339,28 @@ static void updateReports(void) {
 		}
 	}
 
-	// Have Right Trackpad act as Right Analog:
-	trackpadGetLastXY(R_TRACKPAD, &tpad_x, &tpad_y);
-	controllerUsbData.statusReport.rightAnalogX = convToPowerAJoyPos(tpad_x, 
-		0, TPAD_MAX_X/2, TPAD_MAX_X);
-	controllerUsbData.statusReport.rightAnalogY = convToPowerAJoyPos(
-		 TPAD_MAX_Y - tpad_y, 0, TPAD_MAX_Y/2, TPAD_MAX_Y);
+    const uint32_t POS_MAX = 0xFF;
+	const uint32_t POS_MIN = 0x00;
+	const uint32_t MID_VAL = (POS_MAX+1)/2;
+
+    uint32_t cStickX = MID_VAL;
+    uint32_t cStickY = MID_VAL;
+
+    if (getXButtonState()) {
+        cStickX = POS_MIN;
+    }
+    if (getYButtonState()) {
+        cStickY = POS_MIN;
+    }
+    if (getBButtonState()) {
+        cStickX = POS_MAX;
+    }
+    if (getAButtonState()) {
+        cStickY = POS_MAX;
+    }
+
+    controllerUsbData.statusReport.rightAnalogX = cStickX;
+    controllerUsbData.statusReport.rightAnalogY = cStickY;
 }
 
 /**

@@ -235,11 +235,13 @@ void stage2Init(uint32_t hwVersion){
 
 	initLedCtrl();
 
+    setLedIntensity(40000);
+
 	initButtons();
 
 	initTrackpad();
 
-	initHaptics();
+	// initHaptics();
 }
 
 /**
