@@ -1228,7 +1228,7 @@ static uint8_t convToPowerAJoyPos(uint32_t rawVal, uint32_t centerWidth,
 	uint32_t activeWidth, uint32_t maxRawVal) {
 
 	const uint32_t POS_MAX = 0xFF;
-	const uint32_t MID_VAL = (POS_MAX+1)/2;
+	const uint32_t MID_VAL = (POS_MAX-1)/2; // we want to round downwards and not upwards; otherwise it can overflow
 
 	// Defines where neutral deadzone starts and ends
 	const uint32_t NEUTRAL_HI_LIM = maxRawVal/2 + centerWidth/2;
@@ -1273,7 +1273,7 @@ static void updateReports(void) {
 
 	// Associate Steam Controller buttons to Switch Controller buttons:
 	controllerUsbData.statusReport.rightTrigger = getRightTriggerState();
-	controllerUsbData.statusReport.leftTrigger = getLeftTriggerState();
+	controllerUsbData.statusReport.leftTrigger = getLeftTriggerState() || getFrontRightButtonState();
 	controllerUsbData.statusReport.rightBumper = getRightBumperState();
 	controllerUsbData.statusReport.leftBumper = getLeftBumperState();
 
@@ -1282,13 +1282,13 @@ static void updateReports(void) {
 	controllerUsbData.statusReport.bButton = getAButtonState();
 	controllerUsbData.statusReport.yButton = getXButtonState();
 
-	controllerUsbData.statusReport.snapshotButton = getLeftGripState();
-	controllerUsbData.statusReport.homeButton = getSteamButtonState();
+	// controllerUsbData.statusReport.snapshotButton = getLeftGripState();
+	// controllerUsbData.statusReport.homeButton = getSteamButtonState();
 
-	controllerUsbData.statusReport.rightAnalogClick = getRightTrackpadClickState();
+	// controllerUsbData.statusReport.rightAnalogClick = getRightTrackpadClickState();
 	controllerUsbData.statusReport.leftAnalogClick = getJoyClickState();
-	controllerUsbData.statusReport.plusButton = getFrontRightButtonState();
-	controllerUsbData.statusReport.minusButton = getFrontLeftButtonState();
+	controllerUsbData.statusReport.plusButton = getFrontLeftButtonState();
+	// controllerUsbData.statusReport.minusButton = getFrontLeftButtonState();
 
 	// Analog Joystick is Left Analog:
 	controllerUsbData.statusReport.leftAnalogX = convToPowerAJoyPos(
@@ -1341,10 +1341,18 @@ static void updateReports(void) {
 
 	// Have Right Trackpad act as Right Analog:
 	trackpadGetLastXY(R_TRACKPAD, &tpad_x, &tpad_y);
-	controllerUsbData.statusReport.rightAnalogX = convToPowerAJoyPos(tpad_x, 
-		0, TPAD_MAX_X/2, TPAD_MAX_X);
-	controllerUsbData.statusReport.rightAnalogY = convToPowerAJoyPos(
-		 TPAD_MAX_Y - tpad_y, 0, TPAD_MAX_Y/2, TPAD_MAX_Y);
+
+    // But only if clicked
+    if (getRightTrackpadClickState()) {
+		controllerUsbData.statusReport.rightAnalogX = convToPowerAJoyPos(tpad_x, 
+			0, TPAD_MAX_X/2, TPAD_MAX_X);
+		controllerUsbData.statusReport.rightAnalogY = convToPowerAJoyPos(
+			 TPAD_MAX_Y - tpad_y, 0, TPAD_MAX_Y/2, TPAD_MAX_Y);
+    } else {
+        // resets back to neutral point? I think?
+		controllerUsbData.statusReport.rightAnalogX = (0xFF-1)/2;
+		controllerUsbData.statusReport.rightAnalogY = (0xFF-1)/2;
+    }
 }
 
 /**
