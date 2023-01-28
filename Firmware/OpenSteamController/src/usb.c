@@ -1342,17 +1342,17 @@ static void updateReports(void) {
 	// Have Right Trackpad act as Right Analog:
 	trackpadGetLastXY(R_TRACKPAD, &tpad_x, &tpad_y);
 
-    // But only if clicked
-    if (getRightTrackpadClickState()) {
+// But only if clicked
+	if (getRightTrackpadClickState()) {
 		controllerUsbData.statusReport.rightAnalogX = convToPowerAJoyPos(tpad_x, 
 			0, TPAD_MAX_X/2, TPAD_MAX_X);
 		controllerUsbData.statusReport.rightAnalogY = convToPowerAJoyPos(
 			 TPAD_MAX_Y - tpad_y, 0, TPAD_MAX_Y/2, TPAD_MAX_Y);
-    } else {
-        // resets back to neutral point? I think?
+	} else {
+// resets back to neutral point? I think?
 		controllerUsbData.statusReport.rightAnalogX = (0xFF-1)/2;
 		controllerUsbData.statusReport.rightAnalogY = (0xFF-1)/2;
-    }
+	}
 }
 
 /**
