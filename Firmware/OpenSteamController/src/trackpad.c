@@ -864,8 +864,8 @@ void trackpadLocUpdate(Trackpad trackpad) {
 void trackpadGetLastXY(Trackpad trackpad, uint16_t* xLoc, uint16_t* yLoc) {
 
 	// Set defaults in case finger is not down
-	*xLoc = 1200/2;
-	*yLoc = 700/2;
+	*xLoc = TPAD_MAX_X/2;
+	*yLoc = TPAD_MAX_Y/2;
 
 	// Wait for AnyMeas ADCs related to X position to be updated
 	while (tpadAdcIdxs[trackpad] < NUM_ANYMEAS_X_ADCS) {
@@ -1077,8 +1077,11 @@ void trackpadGetLastXY(Trackpad trackpad, uint16_t* xLoc, uint16_t* yLoc) {
 		transition_state = POS_INVALID;
 	}
 
+    int32_t max_amplitude_x = 0;
+
 	for (int idx = 0; idx < 11; idx++) {
 		int32_t diff = adc_vals_x[idx+1] - adc_vals_x[idx];
+        max_amplitude_x = diff > max_amplitude_x ? diff : max_amplitude_x;
 		if (transition_state == WAIT_FOR_0_TO_P) {
 			if (diff > 0) {
 				transition_state = WAIT_FOR_P_TO_N;
@@ -1121,7 +1124,7 @@ void trackpadGetLastXY(Trackpad trackpad, uint16_t* xLoc, uint16_t* yLoc) {
 
 		if (divisor) {
 			x_pos = dividend / divisor;	
-			x_pos = 1200 - x_pos;
+			x_pos = TPAD_MAX_X - x_pos;
 		}
 	}
 
@@ -1130,7 +1133,7 @@ void trackpadGetLastXY(Trackpad trackpad, uint16_t* xLoc, uint16_t* yLoc) {
 	}
 
 	// Early exit if no finger down detected in X position calculation
-	if (x_pos < 0) {
+	if (x_pos < 0 || max_amplitude_x < 512) {
 		return;
 	}
 
@@ -1281,9 +1284,53 @@ void trackpadGetLastXY(Trackpad trackpad, uint16_t* xLoc, uint16_t* yLoc) {
 
 	// Update outputs if finger was down (i.e. x_pos and y_pos are both valid)
 	if (x_pos > 0 && y_pos > 0)  {
+
+        // hacks to try to somewhat re-align it
+        bool left = x_pos > 600;
+        bool right = x_pos < 600;
+        bool over = y_pos > 300;
+        bool under = y_pos < 230;
+
+        if (left) {
+            y_pos += (y_pos / 6);
+            if (y_pos > 600) {
+                y_pos = 600;
+            }
+        } else if (right) {
+            y_pos -= (y_pos / 5);
+            if (y_pos < 1) {
+                y_pos = 0;
+            }
+        }
+
+        if (over) {
+            x_pos -= (x_pos / 6);
+            if (x_pos < 1) {
+                x_pos = 0;
+            }
+        }
+
+        // if (over) {
+        //     x_pos += (x_pos / 6);
+        //     if (x_pos > 1200) {
+        //         x_pos = 1200;
+        //     }
+        // } else if (under) {
+        //     x_pos -= (x_pos / 6);
+        //     if (x_pos < 1) {
+        //         x_pos = 0;
+        //     }
+        // }
+
 		*xLoc = x_pos;
 		*yLoc = y_pos;
-	}
+    } else if (y_pos == -1) {
+        // The calibration is incorrect and we have a deadzone at the top. 
+        // This is a hack to detect that deadzone and peg the coordinate
+        // printf(" #&&# no finger down at ending %d %d #&&#", x_pos, y_pos);
+		*xLoc = x_pos;
+		*yLoc = TPAD_MAX_Y;
+    }
 }
 
 /**
@@ -1771,12 +1818,24 @@ void tpadMonitor(void) {
 		printf("   %4d ", x_loc);
 		printf("   %4d ", y_loc);
 
-		printf(" %4d %4d", tpadAdcDatas[R_TRACKPAD][18], tpadAdcDatas[L_TRACKPAD][18]);
+        if (x_loc == 600 && y_loc == 350) {
+            printf("\n# Right Trackpad AnyMeas ADC Vals:\n");
+
+            for (int idx = 0; idx < NUM_ANYMEAS_ADCS; idx++) {
+                uint32_t base_addr = 0x10000a38;
+                printf("set {short}0x%08x = %d\n", base_addr + 2 * idx, 
+                tpadAdcDatas[R_TRACKPAD][idx]);
+                printf("set {short}0x%08x = %d\n", 0x4c + base_addr + 2 * idx, 
+                tpadAdcDatas[R_TRACKPAD][idx]);
+            }
+        }
+
+		// printf(" %4d %4d", tpadAdcDatas[R_TRACKPAD][18], tpadAdcDatas[L_TRACKPAD][18]);
 
 		printf("\r");
 		usb_flush();
 
-		usleep(10 * 1000);
+		usleep(500 * 1000);
 	}
 }
 

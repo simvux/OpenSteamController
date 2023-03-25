@@ -1227,6 +1227,10 @@ static ControllerUsbData controllerUsbData;
 static uint8_t convToPowerAJoyPos(uint32_t rawVal, uint32_t centerWidth, 
 	uint32_t activeWidth, uint32_t maxRawVal) {
 
+	if (rawVal > maxRawVal) {
+		rawVal = maxRawVal;
+    };
+
 	const uint32_t POS_MAX = 0xFF;
 	const uint32_t MID_VAL = (POS_MAX-1)/2; // we want to round downwards and not upwards; otherwise it can overflow
 
@@ -1258,6 +1262,24 @@ static uint8_t convToPowerAJoyPos(uint32_t rawVal, uint32_t centerWidth,
 	return MID_VAL;
 }
 
+// hacky "snap" implementation
+// static uint8_t convTpadToJoyPos(uint32_t rawVal, uint32_t maxRawVal) {
+// 	const uint32_t POS_MAX = 0xFF;
+// 
+// 	const uint32_t FIXED = 1024;
+// 	uint32_t ratio = FIXED * POS_MAX / maxRawVal;
+// 
+// 	uint32_t result = rawVal * ratio / FIXED;
+// 
+// 	if (result > 155) {
+// 		return 255;
+// 	} else if (result < 100) {
+// 		return 0;
+// 	} else {
+// 		return result;
+// 	}
+// }
+
 /**
  * Update HID Report(s) for Faux Wired Controller Plus (by PowerA) for Nintendo
  *  Switch. These report(s) give status information on the controller (i.e. 
@@ -1273,7 +1295,7 @@ static void updateReports(void) {
 
 	// Associate Steam Controller buttons to Switch Controller buttons:
 	controllerUsbData.statusReport.rightTrigger = getRightTriggerState();
-	controllerUsbData.statusReport.leftTrigger = getLeftTriggerState() || getFrontRightButtonState();
+	controllerUsbData.statusReport.leftTrigger = getLeftTriggerState();
 	controllerUsbData.statusReport.rightBumper = getRightBumperState();
 	controllerUsbData.statusReport.leftBumper = getLeftBumperState();
 
@@ -1287,8 +1309,8 @@ static void updateReports(void) {
 
 	// controllerUsbData.statusReport.rightAnalogClick = getRightTrackpadClickState();
 	controllerUsbData.statusReport.leftAnalogClick = getJoyClickState();
-	controllerUsbData.statusReport.plusButton = getFrontLeftButtonState();
-	// controllerUsbData.statusReport.minusButton = getFrontLeftButtonState();
+	controllerUsbData.statusReport.plusButton = getFrontRightButtonState();
+	controllerUsbData.statusReport.minusButton = getFrontLeftButtonState();
 
 	// Analog Joystick is Left Analog:
 	controllerUsbData.statusReport.leftAnalogX = convToPowerAJoyPos(
@@ -1339,20 +1361,47 @@ static void updateReports(void) {
 		}
 	}
 
-	// Have Right Trackpad act as Right Analog:
+	// Retrieve latest position of right trackpad
 	trackpadGetLastXY(R_TRACKPAD, &tpad_x, &tpad_y);
 
-// But only if clicked
+    // Default joystick to middle
+	controllerUsbData.statusReport.rightAnalogX = 0xFF/2;
+	controllerUsbData.statusReport.rightAnalogY = 0xFF/2;
+
+	// If clicked; set the joystick position to correlate with trackpad input
 	if (getRightTrackpadClickState()) {
+		// controllerUsbData.statusReport.rightAnalogX = convTpadToJoyPos(tpad_x, TPAD_MAX_X);
+		// controllerUsbData.statusReport.rightAnalogY = 0xFF - convTpadToJoyPos(tpad_y, TPAD_MAX_Y);
 		controllerUsbData.statusReport.rightAnalogX = convToPowerAJoyPos(tpad_x, 
 			0, TPAD_MAX_X/2, TPAD_MAX_X);
 		controllerUsbData.statusReport.rightAnalogY = convToPowerAJoyPos(
 			 TPAD_MAX_Y - tpad_y, 0, TPAD_MAX_Y/2, TPAD_MAX_Y);
-	} else {
-// resets back to neutral point? I think?
-		controllerUsbData.statusReport.rightAnalogX = (0xFF-1)/2;
-		controllerUsbData.statusReport.rightAnalogY = (0xFF-1)/2;
 	}
+}
+
+static void snapToJoyAngle(uint8_t* joyX, uint8_t* joyY, uint16_t touchX, uint16_t touchY) {
+	const uint16_t upReq = 370;
+	const uint16_t downReq = 330;
+
+	const uint16_t leftReq = 650;
+	const uint16_t rightReq = 550;
+
+	bool up = touchY > upReq;
+	bool down = touchY < downReq;
+	bool left = touchX < leftReq;
+	bool right = touchX > rightReq;
+
+	// Don't we basically want:
+	//
+	// if more (up than left):
+	//   straight-up
+	// if more (left than up):
+	//   if up:
+	//     up-angled-left-f-tilt
+	//   else:
+	//     left-f-tilt
+
+	// bool upAngledLeftTilt = left && (touchY > );
 }
 
 /**
